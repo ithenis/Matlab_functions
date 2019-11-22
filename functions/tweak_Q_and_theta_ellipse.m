@@ -1,13 +1,13 @@
-function [best_theta, min_slope_err] = tweak_Q_and_theta_ellipse(active_x,active_phi, params)
+function [best_theta, best_Q, min_slope_err] = tweak_Q_and_theta_ellipse(active_x,active_phi, ellipse_params)
 
 % active_x
 % active_phi
 % params = [P Q theta semn]
 
-P = params(1);
-Q = params(2);
-spec_theta = params(3);
-semn = params(4);
+P = ellipse_params(1);
+Q = ellipse_params(2);
+spec_theta = ellipse_params(3);
+semn = ellipse_params(4);
 
 step_theta = spec_theta;
 Qstep = Q/100/5;

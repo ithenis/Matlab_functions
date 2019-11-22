@@ -1,13 +1,13 @@
-function [best_theta, min_slope_err] = tweak_theta_ellipse(active_x,active_phi, params)
+function [best_theta, min_slope_err] = tweak_theta_ellipse(active_x,active_phi, ellipse_params)
 
 % active_x
 % active_phi
 % params = [P Q theta semn]
 
-P = params(1);
-Q = params(2);
-spec_theta = params(3);
-semn = params(4);
+P = ellipse_params(1);
+Q = ellipse_params(2);
+spec_theta = ellipse_params(3);
+semn = ellipse_params(4);
 
 step_theta = spec_theta;
 
@@ -36,7 +36,7 @@ for ii = 1:3
     theta_min = thetas(min_idx);
     
     
-    assignin('base',['thetas' num2str(ii)],thetas*1000000);
+    assignin('base',['thetas' num2str(ii)],thetas*1000);
     assignin('base',['slope_errs_rms' num2str(ii)],slope_errs_rms*1000000);
     
     %
@@ -54,7 +54,7 @@ for ii = 1:3
     
 end
 best_theta = spec_theta;
-spec_theta = params(3);
+spec_theta = ellipse_params(3);
 change = abs(best_theta-spec_theta)*100/spec_theta;
 fprintf('\nMinimum slope error = %.6furad for:\n  * new theta = %.9f (changes by: %.3f percent)\n', min_slope_err*10^6, best_theta, change)
 

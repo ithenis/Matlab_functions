@@ -31,7 +31,7 @@ end
 prompt = {'Measured surface facing UP (y/n)','Optic name'};
 default = {'y',''};
 answer = inputdlg(prompt,'title',1,default);
-
+1
 if isempty(answer)
     clear
     disp('user abort')

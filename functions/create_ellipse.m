@@ -9,7 +9,7 @@ function output = create_ellipse(P, Q, theta, semn, L, dx)
 %     L [m] = length of parabola;
 %     dx [m] = sampling step;
 % outputs:
-%       x [m] centred at 0, slope [rad], height [m], radius [m]
+%     x [m] centred at 0, slope [rad], height [m], radius [m]
 
 % +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 

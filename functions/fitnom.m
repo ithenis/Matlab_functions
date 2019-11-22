@@ -1,12 +1,11 @@
+function output = fitnom(active_x,active_phi,fit_to,params)
 % fit 1D slope data to specified curve
 % SYNTAX:
 %         output = fitnom(active_x,active_phi,fit_to,params)
 % where:
-%         fit_to = 'poly' / 'cylinder' / 'ellipse'
-%         params = [P Q theta semn] for ellipse fitting / [] empty for others
+%         fit_to = 'poly' / 'cylinder' / 'ellipse' / 'parabola'
+%         params = [P Q theta semn] for ellipse fitting / R for others
 % +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
-function output = fitnom(active_x,active_phi,fit_to,params)
 
 
 active_x = active_x(:);
@@ -16,9 +15,18 @@ dx = active_x(2) - active_x(1);
 
 switch fit_to
     case 'poly'
-        % equivalent of excel's slope function
-        b = sum((active_x-mean(active_x)).*(active_phi - mean(active_phi)))/sum((active_x-mean(active_x)).^2);
+        if nargin == 4
+            R  = params(1);
+        else
+            R = -1;
+        end
         
+        if R<0
+        % equivalent of excel's slope function
+            b = sum((active_x-mean(active_x)).*(active_phi - mean(active_phi)))/sum((active_x-mean(active_x)).^2)  ;      
+        else 
+            b = R;  % specified radius
+        end
         % equivalent of excel's intercept function
         a = mean(active_phi - mean(active_phi)) - b*mean(active_x);
         
@@ -29,12 +37,25 @@ switch fit_to
         output.slope_err_rms = sqrt(sum((output.slope_err-mean(output.slope_err)).^2)/(numel(output.slope_err)-1));
         
     case 'cylinder'
+        
         % calculate sin(phi)
         sinphi = sin(active_phi-mean(active_phi));
         
+        if nargin == 4
+            R  = params(1);
+        else
+            R = -1;
+        end
+       
+        if R<0
         % equivalent of excel's slope function
-        b = 1/(sum((active_x-mean(active_x)).*(sinphi - mean(sinphi)))/sum((active_x-mean(active_x)).^2));
-        
+            b = 1/(sum((active_x-mean(active_x)).*(sinphi - mean(sinphi)))/sum((active_x-mean(active_x)).^2));       
+        else 
+            b = 1/(sum((active_x-mean(active_x)).*(sinphi - mean(sinphi)))/sum((active_x-mean(active_x)).^2));            
+            fprintf('\n best fit cylinder radius: %f [m] \n', b);
+            b = R;  % specified radius            
+        end        
+       
         if sign(b) == -1
             curvature = 'convex';
         else
@@ -68,8 +89,7 @@ switch fit_to
                 clear
                 disp('user abort')
                 return
-            end
-            
+            end            
             P  = str2num(answer3{1});
             Q  = str2num(answer3{2});
             theta = str2num(answer3{3});
@@ -83,7 +103,7 @@ switch fit_to
         end
         
         RoC_ellipse = (2*P*Q)/((P+Q)*sin(theta));
-        
+%         fprintf(' ellipse radius: %f [m] ', RoC_ellipse);
         output.slope_ideal = semn*( ((P+Q)*sin(theta)) / ((P+Q)^2-((P-Q)^2)*(sin(theta)^2)) )...
             *( (P-Q)*cos(theta) - sqrt(P*Q)*(((P-Q)*cos(theta)-2*semn*active_x)./(sqrt(P*Q+((P-Q)*cos(theta))*(semn*active_x)-active_x.^2))));
         
@@ -112,6 +132,12 @@ switch fit_to
         
         % this is the equivalent of the STDEV function in excel. It uses the n-1 rule!
         output.slope_err_rms = sqrt(sum((output.slope_err-mean(output.slope_err)).^2)/(numel(output.slope_err)-1));
+
+
+case 'parabola'
+    disp('not yet')
+
+
 end
 
 
@@ -124,8 +150,9 @@ tango_err = tan(output.slope_err);
 
 output.height_err = 0.5*([0; tango_err(1:end-1)] + tango_err)*dx;
 output.height_err = cumsum(output.height_err);
-output.height_err = output.height_err - output.height_err(1);
-
+% output.height_err = output.height_err - output.height_err(1);
+output.height_err = output.height_err - mean(output.height_err);
 % this is the equivalent of the STDEV function in excel. It uses the n-1 rule!
 output.height_err_rms = sqrt(sum((output.height_err-mean(output.height_err)).^2)/(numel(output.height_err)-1));
-
+% figure
+% plot(output.height_err)

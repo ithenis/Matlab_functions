@@ -307,9 +307,16 @@ function m_importGTXdata_Callback(hObject, eventdata, handles)
             set (handles.t_mappy_says,'String',{' mappy says:'; '   GTX file import aborted'});
       end
     
-    
+   
+
+% --------------------------------------------------------------------
+function m_importHDXdata_Callback(hObject, eventdata, handles)
+
       
-      
+     
+
+
+
     
 %% ------ MENU BATCH PROCESS ---------------------------------------------
   
@@ -489,10 +496,10 @@ function pb_load_Callback(hObject, eventdata, handles)
     disp('done load')
     handles.flag1 = 0;
     aa = numel(fileN);
-    set(handles.s_map_browser,'Value',1);
-    set(handles.s_map_browser,'Min',1);
-    set(handles.s_map_browser,'Max',aa);
-    set(handles.s_map_browser,'SliderStep',[1/(aa-1) 1/(aa-1)]);
+%     set(handles.s_map_browser,'Value',1);
+%     set(handles.s_map_browser,'Min',1);
+%     set(handles.s_map_browser,'Max',aa);
+%     set(handles.s_map_browser,'SliderStep',[1/(aa-1) 1/(aa-1)]);
 
     % Update handles structure
     guidata(hObject, handles);
@@ -537,7 +544,8 @@ function pb_manual_crop_Callback(hObject, eventdata, handles)
         disp('Load a map to crop from, you clot')
         return
     end
-    curr_map = get(handles.s_map_browser,'Value');
+%     curr_map = get(handles.s_map_browser,'Value');
+curr_map = 1
     go = 1;
     while go==1
         figure(234),set(gcf,'color','w',  'Position', [100, 100, 700, 500]);
@@ -615,7 +623,8 @@ function pb_autocrop_Callback(hObject, eventdata, handles)
         disp('Load a map to crop from, you clot')
         return
     end
-    curr_map = get(handles.s_map_browser,'Value');    
+%     curr_map = get(handles.s_map_browser,'Value');    
+curr_map = 1;
     data = map_trim(handles.mydata.map(:,:,curr_map));
     if numel(data.ix)==0||numel(data.iy)==0
         disp('use manual cropping')
@@ -919,8 +928,8 @@ function pb_pop_out_fig_Callback(hObject, eventdata, handles)
         figure(123),set(gcf,'color','w',  'Position', [100, 100, 700, 500]);  
     end
     
-    curr_map = get(handles.s_map_browser,'Value');
-        
+%     curr_map = get(handles.s_map_browser,'Value');
+        curr_map = 1
     if get(handles.rb_surf,'Value')==1
         if size(handles.mydata.map,2)>1000
             step = floor(size(handles.mydata.map,2)/300);
@@ -941,7 +950,7 @@ function pb_pop_out_fig_Callback(hObject, eventdata, handles)
         daspect([1 1 fact*4]);
         xlabel('X-axis [mm]','Fontsize',12,'FontWeight','bold')
         ylabel('Y-axis [mm]','Fontsize',12,'FontWeight','bold')
-        zlabel('Z-axis [nm]','Fontsize',12,'FontWeight','bold')
+        zlabel('Z-axis [um]','Fontsize',12,'FontWeight','bold')
         
     elseif get(handles.rb_image,'Value')==1
         x = handles.mydata.x_map(1,:,1)*10^3;
@@ -1304,7 +1313,8 @@ function handles = create_profile( handles, hObject, flag)
 % only analyses the first map
     tag = get(get(handles.rbp_horiz_vert,'SelectedObject'),'Tag');
     ny = str2num(get(handles.e_profile_width,'String'));
-    curr_map = get(handles.s_map_browser,'Value');
+%     curr_map = get(handles.s_map_browser,'Value');
+curr_map = 1
     data = handles.mydata.map(:,:,curr_map);
 
 % create profile
@@ -1354,7 +1364,8 @@ function handles = refresh_axes(handles)
   
     tag = get(get(handles.rbp_horiz_vert,'SelectedObject'),'Tag');
     ny = str2num(get(handles.e_profile_width,'String'));
-    curr_map = get(handles.s_map_browser,'Value');
+%     curr_map = 1; %get(handles.s_map_browser,'Value');
+curr_map = 1
     % image plot (axes 1)  
     % ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     axes(handles.axes1)
@@ -1457,10 +1468,10 @@ function popupmenu1_Callback(hObject, eventdata, handles)
     
 function listbox2_Callback(hObject, eventdata, handles)
 
-
-function s_map_browser_Callback(hObject, eventdata, handles)
-       handles = refresh_axes(handles);
-       get(hObject,'Value')
+% 
+% function s_map_browser_Callback(hObject, eventdata, handles)
+%        handles = refresh_axes(handles);
+%        get(hObject,'Value')
 
 
 function e_profile_width_KeyPressFcn(hObject, eventdata, handles)

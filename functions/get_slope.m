@@ -1,6 +1,7 @@
-function [ phi ] = get_slope( height,x )
-%GET_SLOPE calculates slope from height and x
-%syntax:   [ phi ] = get_slope( height,x )
+function [ phi ] = get_slope(x, height)
+%syntax:   [phi] = get_slope(x, height)
+%calculates slope from height and x
+%takes vertical vector inputs
 
 if isvector(height) && numel(height)== numel(x)    
     height = height(:);
@@ -12,6 +13,6 @@ if isvector(height) && numel(height)== numel(x)
 else
     numel(height)
     numel(x)
-    disp('wrong type of inputs')
+    disp('wrong type of inputs, need column vectors')
 end
 

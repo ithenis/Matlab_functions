@@ -39,7 +39,7 @@ function supersmith_OpeningFcn(hObject, eventdata, handles, varargin)
     axes(handles.axes1)
     imagesc(a),axis off, axis equal
     
-    set (handles.t_smith_says,'String',{'Agent Smith says:';'   Good morning, Mr Anderson'}) 
+    set(handles.t_smith_says,'String',{'Agent Smith says:';'   Good morning, Mr Anderson'}) 
         
     % Choose default command line output for supersmith
     handles.output = hObject;
@@ -83,17 +83,30 @@ function m_clc_Callback(hObject, eventdata, handles)
 % +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++  
     
 
+
 % *** send handles to workspace  *** 
 function m_handles2base_Callback(hObject, eventdata, handles)
     assignin('base','handles',handles);    
- 
+% +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++   
 
     
-% *** send datasets to workspace  *** 
+% *** send mydata to workspace  *** 
 function m_mydata2base_Callback(hObject, eventdata, handles)    
     assignin('base','mydata',handles.mydata);
+% +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++      
  
- 
+     
+    
+% *** send exploded datasets to workspace  *** 
+function m_datasets2base_Callback(hObject, eventdata, handles)
+    assignin('base','mydata',handles.mydata);
+    evalin('base','structxplode(mydata)')
+    evalin('base','datasets = datasets(active_sets);')
+    evalin('base','set_names = set_names(active_sets);')
+    evalin('base','keep datasets set_names')
+    evalin('base','for kk = 1:numel(datasets), set_names{kk} = datasets{1,kk}; end')
+    
+    
     
 % +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 % +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -121,16 +134,37 @@ function pb_load_all_Callback(hObject, eventdata, handles)
     load([pathN fileN]);
     handles.pathname = pathN;
     
-    handles = pb_clear_all_Callback(hObject, eventdata, handles);    
+    handles = pb_clear_all_Callback(hObject, eventdata, handles);
+    
     
     if exist('flip_flag','var')   % 2nd revision
+        
         handles.mydata = load([pathN fileN]);        
+        
+        if size(handles.mydata.fitted_flag,2)==9
+            handles.mydata.datasets{1,10} = [];
+            handles.mydata.datasets{1,11} = [];
+            handles.mydata.datasets{1,12} = [];
+            handles.mydata.fitted_flag(:,10:12) = 0;
+            handles.mydata.flip_flag(1,10:12) = 0;
+            handles.mydata.mavg_flag(1,10:12) = 0;
+            handles.mydata.plot_flag(1,10:12) = 0;
+            handles.mydata.x_offset(1,10:12) = 0;
+            handles.mydata.scan_file_names{10} = [];
+            handles.mydata.scan_file_names{11} = [];
+            handles.mydata.scan_file_names{12} = [];
+            handles.mydata.set_names{10} = [];      
+            handles.mydata.set_names{11} = [];  
+            handles.mydata.set_names{12} = [];  
+        end
+        
+        
+        
         set(handles.e_name,'String',handles.mydata.set_names{handles.mydata.crt_set});
     else
         
+        
         if exist('datasets','var')    
-            handles.mydata.datasets = datasets;
-            handles.mydata.set_names = set_names;
             output = cellfun(@(x) isstruct(x), handles.mydata.datasets);
             handles.mydata.active_sets = find(output);
             
@@ -150,6 +184,8 @@ function pb_load_all_Callback(hObject, eventdata, handles)
         handles.pathname = pathN;        
        
     end
+    
+    
     handles.pathname = pathN;   
     % refresh display
     set(handles.cb_flip,'Value',handles.mydata.flip_flag(handles.mydata.crt_set));
@@ -210,14 +246,16 @@ function pb_save_all_Callback(hObject, eventdata, handles)
 function pb_sort_all_Callback(hObject, eventdata, handles)
 %     handles.mydata.active_sets
     bb = handles.mydata.set_names';
-    aa = Sorter(handles.mydata.set_names)
-    empties = setdiff(1:9,handles.mydata.active_sets); kk = 1;
+    aa = Sorter(handles.mydata.set_names);
+    empties = setdiff(1:12,handles.mydata.active_sets); 
+    kk = 1;
     new_active = [];   switch_map = [];
-    for ii = 1:numel(aa)       
-        
+    for ii = 1:size(aa,2)       
+    
+        % this isn't working properly
         if ~isempty(aa{ii})
             switch_map = [switch_map; find(strcmp(handles.mydata.set_names, aa{ii}))];
-            new_active = [new_active;ii];
+            new_active = [new_active; ii];
         else
             switch_map = [switch_map; empties(kk)];
             kk = kk+1;
@@ -226,7 +264,8 @@ function pb_sort_all_Callback(hObject, eventdata, handles)
         
     end
     switch_map
-    old_active = handles.mydata.active_sets';
+    new_active
+    old_active = handles.mydata.active_sets;
      
     % reorder things (if you can...)
     % ----------------------------------------------------------------
@@ -245,6 +284,10 @@ function pb_sort_all_Callback(hObject, eventdata, handles)
     handles.mydata.plot_flag = handles.mydata.plot_flag(switch_map);  
     handles.mydata.flip_flag = handles.mydata.flip_flag(switch_map);
     handles.mydata.x_offset = handles.mydata.x_offset(switch_map);  
+    
+    handles.mydata.fitted_flag = handles.mydata.fitted_flag(switch_map);
+    handles.mydata.mavg_flag = handles.mydata.mavg_flag(switch_map);
+    
     
     % Update handles structure
     guidata(hObject, handles);    
@@ -521,7 +564,7 @@ function cb_plot_Callback(hObject, eventdata, handles)
 
 
 
-% ************   Set an x offset  ************      
+% ************   Set an x offset. this is an absolute value. not relative  ************      
 function e_offset_x_Callback(hObject, eventdata, handles)    
 
     val = str2num(get(hObject,'String'))*10^-3;    
@@ -561,7 +604,7 @@ function pb_PLOT_Callback(hObject, eventdata, handles)
     if get(handles.cb_plot_figure,'Value')    
         if ~ishandle(111)            
             figure(111),   
-            set(gcf,'color','w', 'Position', [50, 50, 800, 400],'DefaultAxesColorOrder',handles.mydata.colormap);
+            set(gcf,'color','w', 'Position', [50, 50, 1100, 400],'DefaultAxesColorOrder',handles.mydata.colormap);
             box on
         else
             figure(111)            
@@ -599,7 +642,7 @@ function pb_PLOT_Callback(hObject, eventdata, handles)
     if get(handles.cb_plot_figure_err,'Value')    
         if ~ishandle(112)
             figure(112),   
-            set(gcf,'color','w', 'Position', [50, 100, 800, 400],'DefaultAxesColorOrder',handles.mydata.colormap);
+            set(gcf,'color','w', 'Position', [50, 100, 1100, 400],'DefaultAxesColorOrder',handles.mydata.colormap);
             box on        
         else
             figure(112)
@@ -619,6 +662,12 @@ function pb_PLOT_Callback(hObject, eventdata, handles)
                         handles.mydata.datasets{handles.mydata.active_sets(kk)}.mavg.height_err_smooth*10^9,...
                         'DisplayName',[handles.mydata.set_names{handles.mydata.active_sets(kk)} '___m.avg' num2str(handles.mydata.datasets{handles.mydata.active_sets(kk)}.mavg.span) 'pts'],...
                         'Color', handles.mydata.colormap(handles.mydata.active_sets(kk),:),   'LineWidth',2)
+                
+                elseif get(handles.rb_plot_avg, 'Value')
+                    plot(handles.mydata.datasets{handles.mydata.active_sets(kk)}.averaged.active_x*10^3,...
+                        handles.mydata.datasets{handles.mydata.active_sets(kk)}.averaged.height_err*10^9,...
+                        'DisplayName',handles.mydata.set_names{handles.mydata.active_sets(kk)},'Color', handles.mydata.colormap(handles.mydata.active_sets(kk),:),'LineWidth',2)       
+                
                 else
                     plot(handles.mydata.datasets{handles.mydata.active_sets(kk)}.active_x*10^3,...
                         handles.mydata.datasets{handles.mydata.active_sets(kk)}.height_err*10^9,...
@@ -639,7 +688,7 @@ function pb_PLOT_Callback(hObject, eventdata, handles)
 % +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++    
       if get(handles.cb_plot_slope_err,'Value')    
         if ~ishandle(113)
-            figure(113),   set(gcf,'color','w',  'Position', [150, 100, 800, 400]); 
+            figure(113),   set(gcf,'color','w',  'Position', [150, 100, 1100, 400]); 
             set(gcf,'DefaultAxesColorOrder',handles.mydata.colormap);
             box on
         else
@@ -662,6 +711,11 @@ function pb_PLOT_Callback(hObject, eventdata, handles)
                         handles.mydata.datasets{handles.mydata.active_sets(kk)}.mavg.slope_err_smooth*10^6,...
                         'DisplayName',[handles.mydata.set_names{handles.mydata.active_sets(kk)} '___m.avg' num2str(handles.mydata.datasets{handles.mydata.active_sets(kk)}.mavg.span) 'pts'],...
                         'Color', handles.mydata.colormap(handles.mydata.active_sets(kk),:),   'LineWidth',2)    
+                elseif get(handles.rb_plot_avg, 'Value')
+                    plot(handles.mydata.datasets{handles.mydata.active_sets(kk)}.averaged.active_x*10^3,...
+                        handles.mydata.datasets{handles.mydata.active_sets(kk)}.averaged.slope_err*10^6,...
+                        'DisplayName',handles.mydata.set_names{handles.mydata.active_sets(kk)},...
+                        'Color', handles.mydata.colormap(handles.mydata.active_sets(kk),:),'LineWidth',2)
                 else
                     plot(handles.mydata.datasets{handles.mydata.active_sets(kk)}.active_x*10^3,...
                         handles.mydata.datasets{handles.mydata.active_sets(kk)}.slope_err*10^6,...
@@ -684,7 +738,7 @@ function pb_PLOT_Callback(hObject, eventdata, handles)
     if get(handles.cb_plot_twist_angle,'Value')    
         if ~ishandle(114)
             figure(114),   
-            set(gcf,'color','w', 'Position', [100, 50, 800, 400],'DefaultAxesColorOrder',handles.mydata.colormap);
+            set(gcf,'color','w', 'Position', [100, 50, 1100, 400],'DefaultAxesColorOrder',handles.mydata.colormap);
             box on
         else
             figure(114)
@@ -714,7 +768,7 @@ function pb_PLOT_Callback(hObject, eventdata, handles)
 % +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
      if get(handles.cb_plot_slope,'Value')    
             if ~ishandle(115)
-                figure(115),   set(gcf,'color','w',  'Position', [200, 50, 800, 400]);  
+                figure(115),   set(gcf,'color','w',  'Position', [200, 50, 1100, 400],'DefaultAxesColorOrder',handles.mydata.colormap);  
                 set(gcf,'DefaultAxesColorOrder',handles.mydata.colormap);
                 box on
             else
@@ -749,7 +803,7 @@ function pb_PLOT_Callback(hObject, eventdata, handles)
     if get(handles.cb_plot_slope_err_vs_slope,'Value')
         if ~ishandle(121)
             figure(121),
-            set(gcf,'color','w', 'Position', [100, 100, 800, 400],'DefaultAxesColorOrder',handles.mydata.colormap);
+            set(gcf,'color','w', 'Position', [100, 100, 1100, 400],'DefaultAxesColorOrder',handles.mydata.colormap);
             box on
         else
             figure(121)
@@ -772,6 +826,11 @@ function pb_PLOT_Callback(hObject, eventdata, handles)
                         handles.mydata.datasets{handles.mydata.active_sets(kk)}.mavg.slope_err_smooth*10^6,...
                         'DisplayName',[handles.mydata.set_names{handles.mydata.active_sets(kk)} '___m.avg' num2str(handles.mydata.datasets{handles.mydata.active_sets(kk)}.mavg.span) 'pts'],...
                         'Color', handles.mydata.colormap(handles.mydata.active_sets(kk),:),   'LineWidth',2)
+                elseif get(handles.rb_plot_avg, 'Value')
+                    plot(handles.mydata.datasets{handles.mydata.active_sets(kk)}.averaged.active_phi*10^6,...
+                        handles.mydata.datasets{handles.mydata.active_sets(kk)}.averaged.slope_err*10^6,...
+                        'DisplayName',handles.mydata.set_names{handles.mydata.active_sets(kk)},...
+                        'Color', handles.mydata.colormap(handles.mydata.active_sets(kk),:),'LineWidth',2)
                 else
                     plot(handles.mydata.datasets{handles.mydata.active_sets(kk)}.active_phi*10^6,...
                         handles.mydata.datasets{handles.mydata.active_sets(kk)}.slope_err*10^6,...
@@ -793,7 +852,7 @@ function pb_PLOT_Callback(hObject, eventdata, handles)
 % ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++    
     if get(handles.cb_plot_figure_err_vs_slope,'Value')    
         if ~ishandle(122)
-            figure(122),   set(gcf,'color','w',  'Position', [50, 200, 800, 400]);   
+            figure(122),   set(gcf,'color','w',  'Position', [50, 200, 1100, 400]);   
             set(gcf,'DefaultAxesColorOrder',handles.mydata.colormap);
             box on
         else
@@ -815,6 +874,10 @@ function pb_PLOT_Callback(hObject, eventdata, handles)
                         handles.mydata.datasets{handles.mydata.active_sets(kk)}.mavg.height_err_smooth*10^9,...
                         'DisplayName',[handles.mydata.set_names{handles.mydata.active_sets(kk)} '___m.avg' num2str(handles.mydata.datasets{handles.mydata.active_sets(kk)}.mavg.span) 'pts'],...
                         'Color', handles.mydata.colormap(handles.mydata.active_sets(kk),:),   'LineWidth',2)
+                elseif get(handles.rb_plot_avg, 'Value')
+                    plot(handles.mydata.datasets{handles.mydata.active_sets(kk)}.averaged.active_phi*10^6,...
+                        handles.mydata.datasets{handles.mydata.active_sets(kk)}.averaged.height_err*10^9,...
+                        'DisplayName',handles.mydata.set_names{handles.mydata.active_sets(kk)},'Color', handles.mydata.colormap(handles.mydata.active_sets(kk),:),'LineWidth',2)
                 else
                     plot(handles.mydata.datasets{handles.mydata.active_sets(kk)}.active_phi*10^6,...
                         handles.mydata.datasets{handles.mydata.active_sets(kk)}.height_err*10^9,...
@@ -837,7 +900,7 @@ function pb_PLOT_Callback(hObject, eventdata, handles)
     if get(handles.cb_plot_twist_vs_slope,'Value')    
         if ~ishandle(123)
             figure(123),   
-            set(gcf,'color','w', 'Position', [100, 50, 800, 400],'DefaultAxesColorOrder',handles.mydata.colormap);
+            set(gcf,'color','w', 'Position', [100, 50, 1100, 400],'DefaultAxesColorOrder',handles.mydata.colormap);
             box on
         else
             figure(123)
@@ -866,7 +929,7 @@ function pb_PLOT_Callback(hObject, eventdata, handles)
 % +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     if get(handles.cb_plot_FFT_slope_err_vs_x,'Value')
         if ~ishandle(131)
-            figure(131),   set(gcf,'color','w',  'Position', [200, 50, 800, 400]);
+            figure(131),   set(gcf,'color','w',  'Position', [200, 50, 1100, 400]);
             set(gcf,'DefaultAxesColorOrder',handles.mydata.colormap);
             box on
         else
@@ -898,7 +961,7 @@ function pb_PLOT_Callback(hObject, eventdata, handles)
 % +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
      if get(handles.cb_plot_FFT_slope_err_vs_slope,'Value')    
             if ~ishandle(132)
-                figure(132),   set(gcf,'color','w',  'Position', [200, 50, 800, 400]);  
+                figure(132),   set(gcf,'color','w',  'Position', [200, 50, 1100, 400]);  
                 set(gcf,'DefaultAxesColorOrder',handles.mydata.colormap);
                 box on
             else
@@ -1011,19 +1074,20 @@ function handles = reset_uicontrols(hObject,handles)
 function handles = reset_variables(hObject, handles)
     
 %  flush previous data
-    handles.mydata.datasets = cell(1,9);    
-    handles.mydata.set_names = cell(1,9);   
-    handles.mydata.scan_file_names = cell(1,9); 
+    handles.mydata.datasets = cell(1,12);    
+    handles.mydata.set_names = cell(1,12);   
+    handles.mydata.scan_file_names = cell(1,12); 
     handles.mydata.active_sets = [];       
     handles.mydata.crt_set = 1;   
-    handles.mydata.plot_flag = zeros(1,9);
-    handles.mydata.flip_flag = zeros(1,9);
-    handles.mydata.fitted_flag = zeros(3,9);
-    handles.mydata.mavg_flag = zeros(1,9);
-    handles.mydata.x_offset = zeros(1,9);       
+    handles.mydata.plot_flag = zeros(1,12);
+    handles.mydata.flip_flag = zeros(1,12);
+    handles.mydata.fitted_flag = zeros(3,12);
+    handles.mydata.mavg_flag = zeros(1,12);
+    handles.mydata.x_offset = zeros(1,12);       
     
-    default_string = {'1.   ---------','2.   ---------','3.   ---------','4.   ---------',...
-                         '5.   ---------','6.   ---------','7.   ---------','8.   ---------','9.   ---------'}; 
+    default_string = {'01.   ---------','02.   ---------','03.   ---------','04.   ---------',...
+                      '05.   ---------','06.   ---------','07.   ---------','08.   ---------',...
+                      '09.   ---------','10.   ---------','11.   ---------','12.   ---------'}; 
     set(handles.lb_loaded_datasets,'UserData',default_string);   
     
     handles.mydata.colormap = [0 0 1;  0 0.7 0;  1 0 0;  0 0.6 0.6;  0.6  0  0.9;  1  0.6  0;  0.7 0 0.1;  0 0 0;  ...
@@ -1083,3 +1147,6 @@ function cb_plot_twist_vs_NOM_x_Callback(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
 
 % Hint: get(hObject,'Value') returns toggle state of cb_plot_twist_vs_NOM_x
+
+
+

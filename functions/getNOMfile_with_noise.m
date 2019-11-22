@@ -6,7 +6,7 @@
 % ================================================================
 
 
-function [fname, cale, pathname] = getNOMfile(pathname);
+function [fname, cale, pathname] = getNOMfile_with_noise(pathname);
 
 format long g
 
@@ -64,6 +64,8 @@ for kk = 1:numel(fname)
             cale = '';
             return
         end
+        
+        
         linen = 1;
 
 % extract config       
@@ -82,7 +84,7 @@ for kk = 1:numel(fname)
         tline = textscan(fid,'%[^\n]','HeaderLines',linen-1);
         tline  = tline{1}(1);
         tline = textscan(tline {1},'%s','Delimiter','\t');
-        ncol = numel(tline{1})-2;
+        ncol = numel(tline{1});
         columnHeaders = tline{1};
         columnHeaders = columnHeaders';
 
@@ -93,14 +95,32 @@ for kk = 1:numel(fname)
         end
 % extract data
         frewind(fid);
-        data = textscan(fid,'%f','HeaderLines',linen,'CommentStyle', {'(', ')'});
-        data = cell2mat(data);
+        data = textscan(fid,'%s','HeaderLines',linen ,'Delimiter','\t');%'CommentStyle', {'(', ')'});
+        data = data{1};
+        data = data(1:end-1);
         fprintf('data size %d\n',numel(data))
         data = reshape(data,[ncol, length(data)/ncol]);
+        fprintf('data size %d\n',numel(data))
         data = data';
+        data = regexprep(data, '(', '');
+        data = regexprep(data, ')', '');
+        noiseX = data(:,13);
+        noiseX = regexp(noiseX, ',', 'split');        
+        noiseX = vertcat(noiseX{:});
+        noiseX = cell2mat(cellfun(@str2num, noiseX, 'UniformOutput', false));
+        
+        noiseY = data(:,14);
+        noiseY = regexp(noiseY, ',', 'split');        
+        noiseY = vertcat(noiseY{:});
+        noiseY = cell2mat(cellfun(@str2num, noiseY, 'UniformOutput', false));
+%         noiseX = cell2mat(noiseX);
+        
+        data = data(:,[1:ncol-2]);
+        fprintf('data size %d\n',numel(data))
+%         data = vertcat(data{:});
+        data = cell2mat(cellfun(@str2num, data, 'UniformOutput', false));
+        
 
-        
-        
         fclose(fid);
         
 % \import data from the NOM csv file
@@ -131,12 +151,12 @@ for kk = 1:numel(fname)
     %% save data
     % -----------------------------------------------------------  
     cale = mfilename('fullpath');
-    cale = cale(1:end-length('_function_library\functions\getNOMfile'));
+    cale = cale(1:end-length('_function_library\functions\getNOMfile_with_noise'));
     cale = [cale '_data\'];
     
-    filename =  filename(1:end-4);    
+    filename =  [filename(1:end-4) '__raw'];    
    
-    save([cale filename], 'x', 'dx', 'phi', 'phi_roll', 'cale', 'pathname', 'filename', 'optic_name', 'VFM', 'write_time');
+    save([cale filename], 'x', 'dx', 'phi', 'phi_roll', 'noiseX', 'noiseY','cale', 'pathname', 'filename', 'optic_name', 'VFM', 'write_time');
     fname{kk} = filename;
 end
 

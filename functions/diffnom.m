@@ -1,9 +1,9 @@
-function slope = diffnom(height,x)
+function slope = diffnom(x, height)
 % +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-%   integrate slope data
+%   differentiate height data
 % +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-%   syntax:  height = intnom(slope,dx,remove_tilt)
-%            slope is 1d data; remove_tilt is optional input
+%   syntax:  slope = diffnom(x, height)
+%            height and x are 1d data; 
 % +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
@@ -22,7 +22,6 @@ height = height(:);
 x = x(:);
 
 slope = diff(height)./diff(x);
-
 
 dx = (x(end)-x(1))/(numel(x)-1);
 xx = x(2:end)-dx/2;

@@ -5,12 +5,12 @@ function output = create_parabola(r,theta,L,dx)
 %     L - length of parabola;
 %     dx = sampling step;
 %     r = focal distance to the centre of the mirror
-%     theta = incidence angle [deg]
+%     theta = incidence angle [rad]
 % this function was developed and tested for a mirror in the upper right quadrant
 
 
 % +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-theta = pi/180*theta; %rad
+%theta = pi/180*theta; %rad
 
 % other parameters
 FM1 = r*cos(2*theta);  %[m] distance from focus to centre of the mirror  
@@ -30,7 +30,7 @@ p = xM - FM1;
 % ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 parabola_right_up = @(x) (4*p*(x-h)).^0.5 + k;
-dx = 0.00025;
+%dx = 0.00025;
 
 output.x = xM-L/2:dx:xM+L/2;
 output.height = parabola_right_up(output.x);

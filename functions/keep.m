@@ -10,4 +10,4 @@ for kk = 1:numel(c)
    evalin('base','clear(c{kk});');
 end
 evalin('base','clear(''c'',''kk'');');
-evalin('base','clc');
+% evalin('base','clc');

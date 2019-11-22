@@ -2,7 +2,6 @@ function [fname, cale] = readGTXasc(filename)
 % ================================================================
 %   import data from csv profiles provided by the Bruker GTx
 %                  *** ithen *** 29/09/2014 ***
-%                  only reads one file at a time
 %                           %%%%%%%%%%%%%
 % ================================================================
 
@@ -113,7 +112,7 @@ for kk = 1:numel(fname)
     Ny = str2num(C{2});
     C = strsplit(config{7},'\t');
     pixel_size = str2num(C{4})*10^-3;% in mm
-    C = strsplit(config{8},'\t');
+    C = strsplit(config{10},'\t');
     magnification = str2num(C{4});
     instrument = 'GTX';
     x = linspace(0,pixel_size*(Nx-1),Nx);

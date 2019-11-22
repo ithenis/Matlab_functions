@@ -53,8 +53,6 @@ function varargout = NEO_OutputFcn(hObject, eventdata, handles)
 % Get default command line output from handles structure
 varargout{1} = handles.output;
 
-
-
    
 % +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 % +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -69,8 +67,7 @@ varargout{1} = handles.output;
 function m_clear_Callback(hObject, eventdata, handles)
     evalin('base','clear')
     
-   
-    
+       
 % *** clear variables from  workkspace  *** 
 function m_clc_Callback(hObject, eventdata, handles)
     evalin('base','clc')
@@ -78,7 +75,6 @@ function m_clc_Callback(hObject, eventdata, handles)
 
 
 %% ------ MENU TO BASE ---------------------------------------------   
-
 
     
 % *** send full analysis to workspace  *** 
@@ -137,6 +133,11 @@ function m_averaged2base_Callback(hObject, eventdata, handles)
     assignin('base','fit_to',eval('handles.myanalysis.fit_to'));
     assignin('base','ellipse_params',eval('handles.myanalysis.ellipse_params'));
     assignin('base','active_L',eval('handles.myanalysis.active_L'));
+    assignin('base','x_scan',eval('handles.mydata.x_scan'));
+    assignin('base','x_substrate',eval('handles.mydata.x_substrate'));
+    assignin('base','x_offset',eval('handles.mydata.x_offset'));
+    assignin('base','active_x_offset',eval('handles.myanalysis.active_x_offset'));
+    assignin('base','dx',eval('handles.mydata.dx'));
     info = create_info;
     assignin('base','info',info);
     
@@ -152,7 +153,6 @@ function m_fitted_to_base_Callback(hObject, eventdata, handles)
         assignin('base','fitted',handles.fitted); 
     end
     
-
     
 % *** send 'walk' structure to workspace  *** 
 function m_walk2base_Callback(hObject, eventdata, handles)
@@ -163,22 +163,15 @@ function m_walk2base_Callback(hObject, eventdata, handles)
     else 
         assignin('base','walk',handles.walk);        
     end  
-
-
-    
+   
 
 % *** send handles to workspace (debug mode)  *** 
 function m_handles2base_Callback(hObject, eventdata, handles)
      assignin('base','handles',handles);
       
- 
-     
-     
-
-    
-%% ------ MENU IMPORT ---------------------------------------------
-
-
+      
+         
+%% ------ MENU EXPORT ---------------------------------------------
 
 % --------------------------------------------------------------------
 function m_export_data_to_excel_file_Callback(hObject, eventdata, handles)
@@ -218,8 +211,6 @@ function m_data4Zeiss2base_Callback(hObject, eventdata, handles)
         assignin('base','headers',headers);
     end  
 
-    
-
 
     
 %% ------ MENU IMPORT ---------------------------------------------
@@ -245,11 +236,11 @@ function m_getNOMfile_Callback(hObject, eventdata, handles)
         set (handles.t_neo_says,'String',{' NEO says:'; '   NOM file import aborted'});
     end
     
-     
-    
+         
 % --------------------------------------------------------------------
 function m_getGTXfile_Callback(hObject, eventdata, handles)    
 
+%     [fname, pathname] = getGTXfile();
     [fname, pathname] = getGTXfile();
     handles.path_load = pathname;
     if ~isempty(fname)
@@ -263,14 +254,13 @@ function m_getGTXfile_Callback(hObject, eventdata, handles)
          set (handles.t_neo_says,'String',{' NEO says:';'   GTX file imported'})
 
 
-    pb_load_data_Callback(hObject, eventdata, handles);
+    pb_LOAD_from_files_Callback(hObject, eventdata, handles);
     else
         % Display message
         set (handles.t_neo_says,'String',{' NEO says:'; '   GTX file import aborted'})
     end   
   
     
-
 % --------------------------------------------------------------------
 function m_getSPIPprofile_Callback(hObject, eventdata, handles)
     [fname, pathname, data_type] = readSPIPasc();
@@ -288,17 +278,15 @@ function m_getSPIPprofile_Callback(hObject, eventdata, handles)
          guidata(hObject, handles);    
          % Display message
          set (handles.t_neo_says,'String',{' NEO says:';'   SPIP file imported'})
-         pb_load_data_Callback(hObject, eventdata, handles);
+         pb_LOAD_from_files_Callback(hObject, eventdata, handles);
     else
         % Display message
         set (handles.t_neo_says,'String',{' NEO says:'; '   SPIP file import aborted'})
     end   
 
-
     
     
 %% ------ MENU EXTRAS ---------------------------------------------
-
 
 
 % --------------------------------------------------------------------
@@ -306,8 +294,9 @@ function m_walk_analysis_Callback(hObject, eventdata, handles)
 
 handles.joker = struct;
     if get(handles.rb_cylinder,'Value')==1
-        fit_to = 'cylinder';
-        params = [];         
+        fit_to = 'cylinder';        
+        R = str2num(get(handles.e_radius_cylinder,'String'));
+        params = [R];           
     elseif get(handles.rb_ellipse,'Value')==1
         fit_to = 'ellipse';
         P = str2num(get(handles.e_P_ellipse,'String'));
@@ -325,31 +314,48 @@ handles.joker = struct;
 
     
     prompt = {'analysis length [mm]','edge [mm]'};
-    default = {'100','5'};
+    default = {'60','30'};
     answer = inputdlg(prompt,'title',1,default);
    
     active_L = str2num(answer{1})*10^-3;
     trim = str2num(answer{2})*10^-3;
  
+ 
+% check if analysis length is centred or not
+    if get(handles.cb_offset_analysis,'Value')==0
+        xcc = nan;
+    else
+        xcc = str2num(get(handles.e_offset_xc,'String'))/1000;
+    end     
+    
  % run analysis  
-    x1=trim;
+xccc = xcc; 
+if isnan(xcc)
+    xccc = 0;
+else
+    xccc = xcc;
+end
+    xc = handles.mydata.x(1,1) + trim + handles.mydata.dx + active_L/2 + xccc % first centre
+    x2 = handles.mydata.x(end,1)-trim - handles.mydata.dx - active_L/2 + xccc % last centre
+    fprintf('running analysis with active length = %f mm; between: xc1 = %f and xc2 = %f \n',active_L*10^3, xc *10^3,x2*10^3);    
+    fprintf('analyzed data is over %f mm, between: xa1 = %f and xa2 = %f \n',(x2 - xc +active_L)*10^3, (xc-active_L/2)*10^3, (x2+active_L/2)*10^3);
+    fprintf('x data is between: x1 = %f and x2 = %f \n',handles.mydata.x(1,1)*10^3, handles.mydata.x(end,1)*10^3);
     xx = [];
     slope_err_rms = [];
-    roc = [];
+    roc = []; 
     
-%     while active_L+x1 <= handles.myanalysis.active_L+trim
-    while active_L+x1 <= handles.mydata.L-trim    
-        output = analyse1Ddata(handles.mydata.x, handles.mydata.phi, handles.mydata.phi_roll,handles.mydata.height, [active_L x1], params);
-        xx = [xx x1]; 
+    while xc+active_L/2 <= handles.mydata.L/2-trim 
+        output = analyse1Ddata(handles.mydata.x, handles.mydata.phi, handles.mydata.phi_roll,handles.mydata.height, [active_L xc], params);
+        xx = [xx xc]; 
         slope_err_rms = [slope_err_rms; mean(output.slope_err_rms)]; 
         roc = [roc; mean(output.roc)];
-        x1=x1+handles.mydata.dx;               
+        xc=xc+handles.mydata.dx;             
     end
     
     [val,idx] = min(slope_err_rms);
-    fprintf('\nMinimum slope error is %f urad, at x1 = %f mm\n',val*10^6,(trim+(idx-1)*handles.mydata.dx)*10^3)
+    fprintf('\nMinimum slope error is %f urad, at x1 = %f mm from centre\n',val*10^6,xx(idx)*10^3)
     [val,idx] = max(slope_err_rms);
-    fprintf('\nMaximum slope error is %f urad, at x1 = %f mm\n',val*10^6,(trim+(idx-1)*handles.mydata.dx)*10^3)
+    fprintf('\nMaximum slope error is %f urad, at x1 = %f mm from centre \n',val*10^6,xx(idx)*10^3)
     
     [val,idx] = min(abs(roc));
     fprintf('\nMinimum radius is %f km, at x1 = %f mm\n',val*10^-3,(trim+(idx-1)*handles.mydata.dx)*10^3)
@@ -360,57 +366,66 @@ handles.joker = struct;
 % plot slope error rms values      
 % +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-    xx = xx+active_L/2;
-    size(xx)
-    size(slope_err_rms)
-    figure(947), set(gcf,'Color','w','position',[50, 50,800, 400])
+
+figure(946),set(gcf,'Color','w','position',[900, 500,  500, 300]) , box on
+hold on
+    plot([handles.mydata.x(1,1)   handles.mydata.x(end,1)]*10^3,   [0 0],  '-k', 'Linewidth',5)           
+    plot([xx(1)-active_L/2 xx(1)+active_L/2]*10^3,   [0.1 0.1], 'b',       [xx(end)-active_L/2 xx(end)+active_L/2]*10^3,   [0.1 0.1],  'b', 'Linewidth',3)
+    plot([xx(1) xx(end)]*10^3,   [0.2 0.2],  'rx', 'MarkerSize',10, 'Linewidth',1.5) 
+    ylim([-1 3])
+    ylimz = get(gca,'ylim')
+    plot([xx(1)-active_L/2 xx(1)-active_L/2]*10^3,ylimz,  '--k', [xx(end)+active_L/2 xx(end)+active_L/2]*10^3,ylimz,  '--k')
+    
+    
+hold off
+
+figure(947), set(gcf,'Color','w','position',[50, 50, 800, 800])
+subplot(2,1,1),box on
     plot(xx*10^3,slope_err_rms*10^9,'.b')
     hold on
-    xlim([0 handles.mydata.L]*10^3)
+    xlim([-handles.mydata.L/2 handles.mydata.L/2]*10^3)
     ylimz = get(gca,'ylim');
-    plot([trim trim]*10^3,ylimz,  '--k', [x1+active_L x1+active_L]*10^3,ylimz,  '--k')
+    plot([xx(1)-active_L/2 xx(1)-active_L/2]*10^3,ylimz,  '--k', [xx(end)+active_L/2 xx(end)+active_L/2]*10^3,ylimz,  '--k')
     hold off
     ylabel('Slope error rms[nrad]','Fontsize',12,'FontWeight','bold')
     xlabel('Length [mm]','Fontsize',12,'FontWeight','bold')
    
     
-   figure(948), set(gcf,'Color','w','position',[50, 50,800, 400])
+subplot(2,1,2),box on
     plot(xx*10^3,abs(roc),'.b')
     hold on
-    xlim([0 handles.mydata.L]*10^3)
+    xlim([-handles.mydata.L/2 handles.mydata.L/2]*10^3)
     ylimz = get(gca,'ylim');
-    plot([trim trim]*10^3,ylimz,  '--k', [x1+active_L x1+active_L]*10^3,ylimz,  '--k')
+    plot([xx(1)-active_L/2 xx(1)-active_L/2]*10^3,ylimz,  '--k', [xx(end)+active_L/2 xx(end)+active_L/2]*10^3,ylimz,  '--k')
     hold off
     ylabel('Radius of curvature [m]','Fontsize',12,'FontWeight','bold')
     xlabel('Length [mm]','Fontsize',12,'FontWeight','bold')
     
-    
-   figure(949), set(gcf,'Color','w','position',[50, 50,800, 400])
-    plot(xx*10^3,1./roc,'.b')
-    hold on
-    xlim([0 handles.mydata.L]*10^3)
-    ylimz = get(gca,'ylim');
-    plot([trim trim]*10^3,ylimz,  '--k', [x1+active_L x1+active_L]*10^3,ylimz,  '--k')
-    hold off
-    ylabel('Curvature [m^-^1]','Fontsize',12,'FontWeight','bold')
-    xlabel('Length [mm]','Fontsize',12,'FontWeight','bold')
+%     
+% figure(949), set(gcf,'Color','w','position',[50, 50,800, 400])
+%     plot(xx*10^3,1./roc,'.b')
+%     hold on
+%     xlim([-handles.mydata.L/2 handles.mydata.L/2]*10^3)
+%     ylimz = get(gca,'ylim');
+%     plot([trim trim]*10^3,ylimz,  '--k', [xc+active_L xc+active_L]*10^3,ylimz,  '--k')
+%     hold off
+%     ylabel('Curvature [m^-^1]','Fontsize',12,'FontWeight','bold')
+%     xlabel('Length [mm]','Fontsize',12,'FontWeight','bold')
     
 handles.walk.slope_err = slope_err_rms;
 handles.walk.roc = roc;
 handles.walk.xx = xx;
 handles.walk.active_L = active_L;
 handles.walk.x1 = trim;
-handles.walk.x2 = x1-handles.mydata.dx+active_L;
+handles.walk.x2 = xc-handles.mydata.dx+active_L;
 % Update handles structure
 guidata(hObject, handles);    
    
-
  
 % *** resets GUI  *** 
 function m_reset_Callback(hObject, eventdata, handles)
     handles = reset_uicontrols(hObject,handles);
     handles = reset_handles(hObject,handles);  
-
 
 
 % +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -420,10 +435,7 @@ function m_reset_Callback(hObject, eventdata, handles)
 % +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
-
-
 %% :::::::::::::::::   Current DATA   :::::::::::::::::::::::::::::::::::::
-
 
 
 % ************   load profile data from files  ************
@@ -431,7 +443,7 @@ function pb_LOAD_from_files_Callback(hObject, eventdata, handles)
     pathN = handles.path_load;
     
 % check if there's all ready a namelist waiting to be loaded  
-    if handles.flag1 == 1;
+    if handles.flag1 == 1
         pathN = mfilename('fullpath');  
     %  'C:\Users\elt29493\Documents\MATLAB\_function_library\GUIs\NEO'
         pathN = [pathN(1:end-26) '_data\'];
@@ -462,8 +474,8 @@ function pb_LOAD_from_files_Callback(hObject, eventdata, handles)
 % fill mydata structure
 
     for kk = 1:numel(fileN)      
-        fileN
-        load([pathN fileN{kk}])
+        
+        load([pathN fileN{kk}]);
         handles.mydata.namelist{kk} = fileN{kk};
 %         if handles.flag1
 %             handles.mydata.namelist{kk} = fileN{kk};
@@ -499,7 +511,7 @@ function pb_LOAD_from_files_Callback(hObject, eventdata, handles)
     else
         output = preanalysis1d('NOM',handles.mydata.x,handles.mydata.phi,handles.mydata.phi_roll);
     end
-    
+   
     handles.mydata.height = output.height;
     handles.mydata.phi = output.phi;
     handles.mydata.phi_roll = output.phi_roll;
@@ -509,8 +521,9 @@ function pb_LOAD_from_files_Callback(hObject, eventdata, handles)
     handles.mydata.L = output.L;
     handles.mydata.VFM = VFM;
     handles.mydata.x_scan = output.x_scan;
+    handles.mydata.x_substrate = output.x_substrate;
     handles.mydata.x_offset = output.x_offset;
-    handles.mydata.x_substrate = output.x_scan;
+    
 %     handles.mydata.x = handles.mydata.x - repmat(handles.mydata.x(1,:),[size(handles.mydata.x,1) 1]);
     clear output
     
@@ -540,8 +553,6 @@ function pb_LOAD_from_files_Callback(hObject, eventdata, handles)
 guidata(hObject, handles);    
     
 
-
-
 % ************   load profile data from base  ************
 function pb_LOAD_from_base_Callback(hObject, eventdata, handles)
 
@@ -563,7 +574,7 @@ function pb_LOAD_from_base_Callback(hObject, eventdata, handles)
     if ~isfield(aa,'instrument')
 
 
-        prompt = {'Which instrument? (NOM/FIZ/GTX)'};
+        prompt = {'Which instrument? (NOM/FIZ/GTX/HDX)'};
         default = {'NOM'};
         answer = inputdlg(prompt,'title',1,default);
 
@@ -575,29 +586,53 @@ function pb_LOAD_from_base_Callback(hObject, eventdata, handles)
         aa.instrument =   answer{1};
 
     end
-        
-    handles.mydata.namelist{kk} = aa.filename;
+    n_scans = size(aa.x,2);
+    
+    % naming convention....not sure abou this
+    for jj= 1:n_scans
+        if isfield(aa, 'namelist')
+            if numel(aa.namelist)==n_scans
+                handles.mydata.namelist{kk+jj-1} = aa.namelist{jj};
+            else
+                handles.mydata.namelist{kk+jj-1} = [aa.namelist{1} '__scan' num2str(jj)];
+            end
+        elseif isfield(aa, 'filename')
+            handles.mydata.namelist{kk+jj-1} = [aa.filename '__scan' num2str(jj)];
+        else
+            handles.mydata.namelist{kk+jj-1} = [aa.instrument  '_Jane_Doe__scan_' num2str(jj)];
+        end
+    end 
     switch aa.instrument
         case 'NOM'
-            handles.mydata.x(:,kk) = aa.x;
-            handles.mydata.phi(:,kk) = aa.phi;
-            handles.mydata.phi_roll(:,kk) = aa.phi_roll;
-            handles.mydata.instrument = 'NOM';
+            
+            handles.mydata.x(:,kk:kk+n_scans-1) = aa.x;
+            handles.mydata.phi(:,kk:kk+n_scans-1) = aa.phi;
+            handles.mydata.phi_roll(:,kk:kk+n_scans-1) = aa.phi_roll;
             VFM = aa.VFM;
+            
+            handles.mydata.instrument = 'NOM';            
         case 'FIZ'
-            handles.mydata.x(:,kk) = aa.x;
-            handles.mydata.height(:,kk) = aa.height;
+            handles.mydata.x(:,kk:kk+n_scans-1) = aa.x;
+            handles.mydata.height(:,kk:kk+n_scans-1) = aa.height;
+            
             VFM = 's';
             handles.mydata.instrument = 'FIZ';
         case 'GTX'
-            handles.mydata.x(:,kk) = aa.x';
-            handles.mydata.height(:,kk) = aa.height';
+            handles.mydata.x(:,kk:kk+n_scans-1) = aa.x';
+            handles.mydata.height(:,kk:kk+n_scans-1) = aa.height';
             handles.mydata.instrument = 'GTX';
             VFM = 'u'
+        case 'HDX'
+            handles.mydata.x(:,kk:kk+n_scans-1) = aa.x;
+            handles.mydata.height(:,kk:kk+n_scans-1) = aa.height;
+            VFM = 's';
+            handles.mydata.instrument = 'HDX';
         otherwise
+            disp('unexpected item in bagging area')
             return
     end
     
+ 
  
 % Run preanalysis and display info
 % ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++    
@@ -609,16 +644,21 @@ function pb_LOAD_from_base_Callback(hObject, eventdata, handles)
     else
         output = preanalysis1d('NOM',handles.mydata.x,handles.mydata.phi,handles.mydata.phi_roll);
     end
-    
+       
     handles.mydata.height = output.height;
     handles.mydata.phi = output.phi;
     handles.mydata.phi_roll = output.phi_roll;
     handles.mydata.x = output.x;   
-    handles.mydata.dx = output.dx; %#ok<*COLND>    
-    handles.mydata.optic_name = aa.optic_name;
+    handles.mydata.dx = output.dx; %#ok<*COLND>   
+    
+    if isfield(aa,'optic_name')
+        handles.mydata.optic_name = aa.optic_name;
+    else
+        handles.mydata.optic_name = 'Jane Doe';
+    end
     handles.mydata.L = output.L;
     handles.mydata.VFM = VFM;
-    handles.mydata.x = handles.mydata.x - repmat(handles.mydata.x(1,:),[size(handles.mydata.x,1) 1]);
+%     handles.mydata.x = handles.mydata.x - repmat(handles.mydata.x(1,:),[size(handles.mydata.x,1) 1]);
     clear output aa
     
  % set uicontrols   
@@ -644,7 +684,6 @@ function pb_LOAD_from_base_Callback(hObject, eventdata, handles)
 guidata(hObject, handles);
  
 
-
 % ************   sort current data  ************
 function pb_sort_data_Callback(hObject, eventdata, handles)
     
@@ -665,8 +704,7 @@ function pb_sort_data_Callback(hObject, eventdata, handles)
     
     % Update handles structure
     guidata(hObject, handles); 
-      
-    
+        
     
 % ************   Save current data  ************    
 function pb_save_data_Callback(hObject, eventdata, handles)  
@@ -706,19 +744,12 @@ function pb_save_data_Callback(hObject, eventdata, handles)
     
           
 
-
-
-
 function e_x1_substrate_Callback(hObject, eventdata, handles)
-
 
 
 
 function e_x2_substrate_Callback(hObject, eventdata, handles)
 
-    
-    
-    
     
     
 %% ::::::::::::::::: CURRENT ANALYSIS :::::::::::::::::::::::::::::::::::::   
@@ -738,7 +769,12 @@ function rb_fit_to_SelectionChangeFcn(hObject, eventdata, handles)
     end
     
     
+
+% --- Executes on button press in pb_position_analysis.
+function pb_position_analysis_Callback(hObject, eventdata, handles) 
     
+
+
 % ************  Perform new analysis  ************
 function pb_analyse_Callback(hObject, eventdata, handles)
     
@@ -751,7 +787,8 @@ function pb_analyse_Callback(hObject, eventdata, handles)
     
     if get(handles.rb_cylinder,'Value')==1
         fit_to = 'cylinder';
-        params = [];         
+        R = str2num(get(handles.e_radius_cylinder,'String'));
+        params = [R]         ;
     elseif get(handles.rb_ellipse,'Value')==1
         fit_to = 'ellipse';
         P = str2num(get(handles.e_P_ellipse,'String'));
@@ -850,7 +887,6 @@ function cb_sign_ellipse_Callback(hObject, eventdata, handles)
 %% ::::::::::::::::: DISPLAY :::::::::::::::::::::::::::::::::::::   
 
 
-
 % ************ All / selected ************
 function rb_show_all_or_selected_SelectionChangeFcn(hObject, eventdata, handles)
     if ~isfield(handles,'myanalysis')
@@ -917,10 +953,10 @@ function pb_plot_Callback(hObject, eventdata, handles)
     x1 = handles.myanalysis.active_x(1,1)-trim;
     x2 = handles.myanalysis.active_x(end,1)+trim;
     
-    
+ % +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++       
     if get(handles.cb_plot_figure,'Value')    
         if ~ishandle(11)
-            figure(11),   set(gcf,'color','w',  'Position', [50, 200, 800, 400]);   
+            figure(11),   set(gcf,'color','w',  'Position', [800, 500, 800, 400]);   
         else
             figure(11)
         end       
@@ -935,28 +971,14 @@ function pb_plot_Callback(hObject, eventdata, handles)
         xlim([x1   x2]*10^3)
     end
     drawnow
-    if get(handles.cb_plot_slope_err,'Value')   
+    
+    
+% +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++        
+    if get(handles.cb_plot_figure_err,'Value') 
         if ~ishandle(12)
-            figure(12),   set(gcf,'color','w',  'Position', [100, 150, 800, 400]);   
+            figure(12),   set(gcf,'color','w',  'Position', [50, 500, 800, 400]);   
         else
             figure(12)
-        end     
-        set(gca,'ColorOrder',co(1:8,:),'LineStyleOrder',{'-',':','--'}, 'NextPlot', 'replacechildren','Box','on');      
-        if idx == -1
-            plot(handles.myanalysis.averaged.active_x*10^3, 10^6*handles.myanalysis.averaged.slope_err,'b','LineWidth',1.5)  
-        else
-            plot(handles.myanalysis.active_x(:,idx)*10^3, 10^6*handles.myanalysis.slope_err(:,idx),'LineWidth',1.5)    
-        end
-        xlabel('X-axis [mm]','Fontsize',12,'FontWeight','bold')
-        ylabel('Slope error [urad]','Fontsize',12,'FontWeight','bold') 
-        xlim([x1 x2]*10^3)
-    end
-    drawnow
-    if get(handles.cb_plot_figure_err,'Value') 
-        if ~ishandle(13)
-            figure(13),   set(gcf,'color','w',  'Position', [150, 100, 800, 400]);   
-        else
-            figure(13)
         end
         set(gca,'ColorOrder',co(1:8,:),'LineStyleOrder',{'-',':','--'}, 'NextPlot', 'replacechildren','Box','on'); 
         if idx == -1
@@ -969,6 +991,48 @@ function pb_plot_Callback(hObject, eventdata, handles)
         xlim([x1 x2]*10^3)
     end
     drawnow
+ 
+ 
+% +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++    
+    if get(handles.cb_plot_slope_err,'Value')   
+        if ~ishandle(13)
+            figure(13),   set(gcf,'color','w',  'Position', [50, 50, 800, 400]);   
+        else
+            figure(13)
+        end     
+        set(gca,'ColorOrder',co(1:8,:),'LineStyleOrder',{'-',':','--'}, 'NextPlot', 'replacechildren','Box','on');      
+        if idx == -1
+            plot(handles.myanalysis.averaged.active_x*10^3, 10^6*handles.myanalysis.averaged.slope_err,'b','LineWidth',1.5)  
+        else
+            plot(handles.myanalysis.active_x(:,idx)*10^3, 10^6*handles.myanalysis.slope_err(:,idx),'LineWidth',1.5)    
+        end
+        xlabel('X-axis [mm]','Fontsize',12,'FontWeight','bold')
+        ylabel('Slope error [urad]','Fontsize',12,'FontWeight','bold') 
+        xlim([x1 x2]*10^3)
+    end
+    drawnow
+    
+    
+ % +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++    
+    if get(handles.cb_plot_slope_err_vs_slope,'Value')   
+        if ~ishandle(122)
+            figure(122),   set(gcf,'color','w',  'Position', [100, 150, 800, 400]);   
+        else
+            figure(122)
+        end     
+        set(gca,'ColorOrder',co(1:8,:),'LineStyleOrder',{'-',':','--'}, 'NextPlot', 'replacechildren','Box','on');      
+        if idx == -1
+            plot(handles.myanalysis.averaged.active_phi*10^3, 10^6*handles.myanalysis.averaged.slope_err,'b','LineWidth',1.5)  
+        else
+            plot(handles.myanalysis.active_phi(:,idx)*10^6, 10^6*handles.myanalysis.slope_err(:,idx),'LineWidth',1.5)    
+        end
+        xlabel('Slope [urad]','Fontsize',12,'FontWeight','bold')
+        ylabel('Slope error [urad]','Fontsize',12,'FontWeight','bold') 
+%         xlim([x1 x2]*10^3)
+    end
+    drawnow   
+    
+ % +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++      
     if get(handles.cb_plot_twist,'Value')    
         if ~ishandle(14)
             figure(14),   set(gcf,'color','w',  'Position', [200, 50, 800, 400]);   
@@ -986,7 +1050,8 @@ function pb_plot_Callback(hObject, eventdata, handles)
         xlim([x1 x2]*10^3)
     end
     drawnow
-    % specials
+    
+ % +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++       
     if get(handles.cb_plot_radius_drift,'Value')    
         if ~ishandle(15)
             figure(15),   set(gcf,'color','w',  'Position', [100, 100, 800, 400]);   
@@ -999,7 +1064,9 @@ function pb_plot_Callback(hObject, eventdata, handles)
         ylabel('Curvature [m^-^1]','Fontsize',12,'FontWeight','bold') 
         xlabel('Scan no','Fontsize',12,'FontWeight','bold')
     end
-    drawnow  
+    drawnow 
+    
+% +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++        
     if get(handles.cb_plot_prfs,'Value')   
         if get(handles.cb_prf_type2,'Value')  
             prfs = handles.myanalysis.active_height(:,2:end) - repmat(handles.myanalysis.active_height(:,1),[1 size(handles.myanalysis.active_height,2)-1]);
@@ -1019,7 +1086,7 @@ function pb_plot_Callback(hObject, eventdata, handles)
         ylabel('PRFs [um]','Fontsize',12,'FontWeight','bold') 
         xlim([x1 x2]*10^3)
     end
-       
+    drawnow   
     
         
 % ************ closes all plot windows  ************
@@ -1030,7 +1097,7 @@ function pb_close_figs_Callback(hObject, eventdata, handles)
     for kk = 1:size(all_figs,1)
         h = all_figs(kk).Number;
         if isnumeric(h) && numel(h)>0         
-            if sum((h==[11:16]))>0
+            if sum((h==[11:16]))>0||sum((h==[945:949]))
                 close(h)
             end
         end
@@ -1120,13 +1187,9 @@ function pb_fit_polynomial_Callback(hObject, eventdata, handles)
     guidata(hObject, handles); 
         
 
-    
-
-
 % +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ 
 %      END OF  *** UICONTROL CALLBACKS ***
 % +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
 
 
 % +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ 
@@ -1134,7 +1197,7 @@ function pb_fit_polynomial_Callback(hObject, eventdata, handles)
 % +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
-
+% --------------------------------------------------------------------
 function handles = reset_uicontrols(hObject,handles)
 
     set(handles.lb_loaded_datasets,'Value',1,'String',''); 
@@ -1167,6 +1230,7 @@ function handles = reset_uicontrols(hObject,handles)
     % reset edit controls
     set(handles.e_active_length,'String','');
     set(handles.e_offset_xc,'String','');
+    set(handles.e_radius_cylinder,'String','-1');
     
     % reset info textboxes
     set(handles.uip_INFO,'Title','OPTIC - INFO'); 
@@ -1183,7 +1247,7 @@ function handles = reset_uicontrols(hObject,handles)
     guidata(hObject, handles);   
 
     
-    
+% --------------------------------------------------------------------    
 function handles = reset_handles(hObject, handles)
     handles.flag1 = 0;
     
@@ -1196,7 +1260,7 @@ function handles = reset_handles(hObject, handles)
     guidata(hObject, handles);     
     
     
-
+% --------------------------------------------------------------------
 function handles = m_average_scans_Callback(hObject, eventdata, handles)   
    
     if ~isfield(handles,'myanalysis')  
@@ -1235,7 +1299,6 @@ function handles = m_average_scans_Callback(hObject, eventdata, handles)
 
 % Update handles structure
 guidata(hObject, handles);    
-
 
 
 % --------------------------------------------------------------------
@@ -1307,8 +1370,7 @@ function m_best_fit_ellipse_tweak_theta_Callback(hObject, eventdata, handles)
 %     xlabel('theta [urad]','Fontsize',12,'FontWeight','bold')
         
     
-    
-    
+ % --------------------------------------------------------------------   
 function m_best_fit_ellipse_doubletweak_theta_Callback(hObject, eventdata, handles)
     
    
@@ -1383,6 +1445,23 @@ function m_best_fit_ellipse_doubletweak_theta_Callback(hObject, eventdata, handl
     
     
     end
+
+
+% --- Executes on button press in cb_plot_slope_err_vs_slope.
+function cb_plot_slope_err_vs_slope_Callback(hObject, eventdata, handles)
+
+
+% --- Executes on button press in cb_plot_joker.
+function cb_plot_joker_Callback(hObject, eventdata, handles)
+% hObject    handle to cb_plot_joker (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hint: get(hObject,'Value') returns toggle state of cb_plot_joker
+
+
+
+function e_radius_cylinder_Callback(hObject, eventdata, handles)
 
 
 
